@@ -19,7 +19,7 @@ public class Serial {
         try {
            while (true)
            {
-              byte[] readBuffer = new byte[1024];
+              byte[] readBuffer = new byte[256];
               int numRead = comPort.readBytes(readBuffer, readBuffer.length);
               for(int i = 0; i < numRead; i++){
                   System.out.print((char)readBuffer[i]);
