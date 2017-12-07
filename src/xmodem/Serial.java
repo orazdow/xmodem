@@ -12,13 +12,14 @@ public class Serial {
         comPort = SerialPort.getCommPorts()[0];
         comPort.openPort();
         comPort.setBaudRate(115200);
-        comPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 50, 50);
+        comPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_BLOCKING, 1000, 0);
     }
     
     void testRead(){
         try {
            while (true)
            {
+            
               byte[] readBuffer = new byte[2048];
               int numRead = comPort.readBytes(readBuffer, readBuffer.length);
                System.out.println("\n"+" ---- "+numRead+" ---- "+"\n");
