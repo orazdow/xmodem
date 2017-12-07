@@ -18,11 +18,9 @@ public class Serial {
     void testRead(){
         try {
            while (true)
-           {
-            
+           {         
               byte[] readBuffer = new byte[2048];
               int numRead = comPort.readBytes(readBuffer, readBuffer.length);
-               System.out.println("\n"+" ---- "+numRead+" ---- "+"\n");
               for(int i = 0; i < numRead; i++){
                   System.out.print((char)readBuffer[i]);
               }
