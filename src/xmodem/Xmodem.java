@@ -45,14 +45,22 @@ public class Xmodem {
                 r.setTest(test);
                 System.out.println("test read mode");
             }
+           try{ 
             r.run();
+           }catch(InterruptedException e){
+               System.out.println(e.getMessage());
+           }
         }else{
             Sender s = new Sender(filePath);
             if(test){
                 s.setTest(test);
                 System.out.println("test write mode");
             }
+            try{
             s.run();
+            }catch(InterruptedException e){
+                System.out.println(e.getMessage());
+            }
         }
     }
     

@@ -8,18 +8,11 @@ import java.io.FileOutputStream;
 public class Receiver extends Serial{
     
     boolean printOutpt = false;
-    FileOutputStream stream;
-    
-    public static final byte FLAG = (byte)126; //0x7E
-    public static final byte ESC = (byte)125; //0x7D
-    
-    public static final byte SOH = (byte)126; //0x7E
-    public static final byte ACK = (byte)125; //0x7D   
-    public static final byte NAK = (byte)125; //0x7D    
-    
+    FileOutputStream stream;   
     enum runmode{READING, WAITING, SENDING}
     runmode mode = runmode.WAITING;
     boolean frameStart = false;
+    int expectednum = 0;
     
     byte data[] = new byte[128];
 
@@ -38,49 +31,71 @@ public class Receiver extends Serial{
         }
     }
     
-    byte getByte(){return 0;}
+    byte getByte(){return read();}
     
-    void xRead(){
-        
+    void readPacket(){
+        int paritycount = 0;
         byte b = getByte();
         
-        if(b == SOH)   
-            b = getByte();
-        
-        int seqnum = b;
-        b = getByte();
-        byte seqsum = (byte)(seqnum+b);
-        
-        if(seqsum != 255){
+        if(b != SOH){
             nack();
-            System.out.println("sequence error");
+            System.out.println("SOH missing");
+            return;   
+        }   
+        b = getByte();
+        
+        byte seqnum = (byte)(b&0xff);
+        b = getByte();
+        byte seqsum = (byte)((seqnum+b)&0xff);
+        
+        if((seqsum&0xff) != 255){
+            nack();
+            System.out.println("sequence block corrupt");
             return;
         }
         // hande expected seqnum
+        if((seqnum&0xff)!= expectednum){
+            nack();
+            System.out.println("out of sequence error");
+            return;          
+        }
         
         for(int i = 0; i < 128; i++){
             data[i] = getByte();
+            paritycount += Integer.bitCount(data[i]);
+
         }
+        b = getByte();
+        byte pcount = (byte)((paritycount%2)&0xff);
         
-        byte crc1 = getByte();
-        byte crc2 = getByte();
-        int _crc = 1;//concatBytes(crc1, crc2);
-        
-        
-        if(_crc != crc(data)){
+        if((pcount&0xff)!=(b&0xff)){
             nack();
-            System.out.println("crc error");
-            return;
-        }
+            System.out.println("bad parity check");
+            return;  
+        }       
+            b = getByte();
+//        byte crc1 = getByte();
+//        byte crc2 = getByte();
+//        int _crc = 1;//concatBytes(crc1, crc2);
+//        
         
+//        if(_crc != crc(data)){
+//            nack();
+//            System.out.println("crc error");
+//            return;
+//        }
+         flush();
         
         
     }
     
     void nack(){
-        
+        byte[] send = new byte[1];
+        send[0] = NAK;
+        write(send);
+        flush();
     }
-     
+    
     void protocall2(){
         byte b = 0; //= getNextByte()
         
@@ -89,9 +104,14 @@ public class Receiver extends Serial{
         }
     }
     
-    void run(){
+    void run()throws InterruptedException{
         if(test){
              testRead();
+        }else{
+            while(true){
+            readPacket();
+            Thread.sleep(100);
+        }
         }
     }
         
