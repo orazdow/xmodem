@@ -35,7 +35,7 @@ public class Xmodem {
         if(opt.equals("ws")){
             isString = true;
         }
-        if(opt.equals("ws") || opt.equals("w")){
+        if(opt.equals("ws") || opt.equals("w") || opt.equals("tw")){
            mode = "WRITE";
         }
         
@@ -46,6 +46,13 @@ public class Xmodem {
                 System.out.println("test read mode");
             }
             r.run();
+        }else{
+            Sender s = new Sender(filePath);
+            if(test){
+                s.setTest(test);
+                System.out.println("test write mode");
+            }
+            s.run();
         }
     }
     
