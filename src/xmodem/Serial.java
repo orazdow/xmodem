@@ -11,7 +11,7 @@ public class Serial {
     Serial(){
         comPort = SerialPort.getCommPorts()[0];
         comPort.openPort();
-        comPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 0);
+        comPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 0, 0);
         comPort.setBaudRate(115200);
     }
     
@@ -19,7 +19,7 @@ public class Serial {
         try {
            while (true)
            {
-              byte[] readBuffer = new byte[4096];
+              byte[] readBuffer = new byte[2048];
               int numRead = comPort.readBytes(readBuffer, readBuffer.length);
               for(int i = 0; i < numRead; i++){
                   System.out.print((char)readBuffer[i]);
