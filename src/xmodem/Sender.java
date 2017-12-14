@@ -87,9 +87,9 @@ public class Sender extends Serial{
         if(!fileEnd)
         packet = makePacket(data); 
         System.out.println("writing "+packet.length+" bytes:");
-        for (int i = 0; i < packet.length; i++) {
-                System.out.print((char)packet[i]&0xff);
-        }
+//        for (int i = 0; i < packet.length; i++) {
+//                System.out.print((char)packet[i]&0xff);
+//        }
         write(packet);
         
         while(((r = readByte()) == 0 || r == C_)){
