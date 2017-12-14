@@ -1,118 +1,143 @@
-
 package xmodem;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
 
 
 public class Receiver extends Serial{
     
-    boolean printOutpt = false;
-    FileOutputStream stream;   
-    enum runmode{READING, WAITING, SENDING}
-    runmode mode = runmode.WAITING;
-    boolean frameStart = false;
+    boolean abort = false;
+    boolean started = false;
+    int starttries = 0;
+    int sohtries = 0;
+    int startlimit = 10000; //.....
+    int sohlimit = 20;
+    int sleeptimeout = 200;
+    int sohtimeout = 200;
     int expectednum = 0;
+    boolean lastpacket = false;
+    boolean finished = false;
+    boolean csent = false;
     
-    byte data[] = new byte[128];
-
+    File file;
+    FileOutputStream out;
     
     Receiver(String path){
-        super();
-        if(path == null){
-            printOutpt = true;
-        }else{
-            try{
-                stream = new FileOutputStream(path);
-            }catch(FileNotFoundException e){
-                System.out.println(e.getMessage());
-            }
-
+        try {
+            file = new File(path);
+            out = new FileOutputStream(file);
+        } catch (FileNotFoundException ex) {
+            System.out.println("Could not create file");
+            ex.printStackTrace();
+            return;
         }
     }
     
-    byte getByte(){return read();}
+
+    void run() throws InterruptedException{        
+        while(!abort && !finished){ 
+            routine();
+            if(!started){
+            if(++starttries >= startlimit){
+                abort("No response from sender"); 
+                return;
+            }else{               
+                write(C_);
+                int busywait = 0;
+                while(busywait++ < 100000){ }           
+
+            }
+            }
+        }  
+        if(finished){
+            try {
+                out.flush();
+                out.close();
+            } catch (IOException ex) {
+                System.out.println("IOExcpetion: error writing file\n"+ex.getMessage());
+            } 
+            System.out.println("received file");
+        }
+    }
     
-    void readPacket(){
+    void routine() throws InterruptedException{
+        byte data[] = new byte[128];
         int paritycount = 0;
-        byte b = getByte();
+        boolean nullfound = false;
         
-        if(b != SOH){
-            nack();
-            System.out.println("SOH missing");
-            return;   
-        }   
-        b = getByte();
-        
-        byte seqnum = (byte)(b&0xff);
-        b = getByte();
+        byte b = readByte();        
+        if(b == SOH){ System.out.println("Received SOH");
+            started = true;
+        }else if(!started){
+            return;
+        }else if(++sohtries < sohlimit){
+            write(NAK); 
+            Thread.sleep(sohtimeout);
+            return;
+        }else{
+            abort("Frame header timeout");
+            return;
+        }
+        byte seqnum = (byte)(readByte()&0xff);
+        b = (byte)(readByte()&0xff);
         byte seqsum = (byte)((seqnum+b)&0xff);
         
-        if((seqsum&0xff) != 255){
-            nack();
+        if((seqsum&0xff) != 0xff){
+            write(NAK);
             System.out.println("sequence block corrupt");
             return;
         }
-        // hande expected seqnum
         if((seqnum&0xff)!= expectednum){
-            nack();
+            write(NAK);
             System.out.println("out of sequence error");
             return;          
         }
         
         for(int i = 0; i < 128; i++){
-            data[i] = getByte();
-            paritycount += Integer.bitCount(data[i]);
-
+              b = (byte)(readByte()&0xff);
+              if(b == NUL){nullfound = true;}
+              data[i] = b;
+              paritycount += Integer.bitCount(b);            
         }
-        b = getByte();
-        byte pcount = (byte)((paritycount%2)&0xff);
+        // eof check
+        if(nullfound){ if(data[127] == NUL){ lastpacket = true; } }
         
+        byte pcount = (byte)((paritycount%2)&0xff);
+        b = (byte)(readByte()&0xff);
         if((pcount&0xff)!=(b&0xff)){
-            nack();
+            write(NAK);
             System.out.println("bad parity check");
             return;  
-        }       
-            b = getByte();
-//        byte crc1 = getByte();
-//        byte crc2 = getByte();
-//        int _crc = 1;//concatBytes(crc1, crc2);
-//        
+        }  
         
-//        if(_crc != crc(data)){
-//            nack();
-//            System.out.println("crc error");
-//            return;
-//        }
-         flush();
-        
-        
+        b = (byte)(readByte()&0xff);
+            
+        System.out.println("ACK OK");  
+        appendData(data);
+        if(lastpacket){ finished = true; }
+        write(ACK);
+        if(!lastpacket)
+        expectednum++;
     }
     
-    void nack(){
-        byte[] send = new byte[1];
-        send[0] = NAK;
-        write(send);
-        flush();
-    }
-    
-    void protocall2(){
-        byte b = 0; //= getNextByte()
-        
-        if(b == FLAG){
-            mode = runmode.READING;
+    void appendData(byte[] data){
+        try {
+            for (int i = 0; i < data.length; i++) {
+                System.out.print((char)data[i]&0xff);
+            }
+            System.out.println("");
+            out.write(data);
+        } catch (IOException ex) {
+            abort("IOExcpetion: error writing to file\n"+ex.getMessage());
         }
     }
     
-    void run()throws InterruptedException{
-        if(test){
-             testRead();
-        }else{
-            while(true){
-            readPacket();
-            Thread.sleep(100);
-        }
-        }
+    void abort(String msg){
+        abort = true;
+        System.out.println(msg);
     }
-        
+    
 }
